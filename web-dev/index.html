@@ -4,24 +4,64 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
-        <title>My Blog</title>
+        <title>Johnny's Trivia Game</title>
         <link rel="stylesheet" href="style.css">
+        <style>
+            body {
+                max-width: 1000px;
+                margin: auto;
+                background: #FAFAFA;
+                font-family: Helvetica;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+
+            button {
+                outline: none;
+                border: none;
+                background-color: royalblue;
+                color: white;
+                margin: 20px;
+                font-size: 36px;
+                border-radius: 10px;
+                min-height: 50px;
+                cursor: pointer;
+            }
+            div {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        </style>
     </head>
     <body>
-        <h1>A large header</h1>
-        <h2>This is a subsection</h2>
-        <ul>
-            <li>Item 1</li>
-            <li>Item 2</li>
-        </ul>
-        <ol>
-            <li>Item 1</li>
-            <li>Item 2</li>
-        </ol>
-        <table>
-            <th>This is a table header</th>
-        </table>
-        <a href="https://janestreet.com">Jane Street</a>
+        <h1>Trivia Time</h1>
+        <h2 class="score">Score: 0/0</h2>
+        <h3 class="question"></h3>
+        <br>
+
+        <div>
+            <button class="incorrectAnswer"></button>
+            <button class="incorrectAnswer"></button>
+            <button class="incorrectAnswer"></button>
+            <button class="incorrectAnswer"></button>
+    
+        </div>
+
+        <!-- <div class="button">
+            <button class="incorrectAnswer"></button>
+        </div>
+        <div class="button">
+            <button class="incorrectAnswer"></button>
+        </div>
+        <div class="button">
+            <button class="incorrectAnswer"></button>
+        </div>
+        <div class="button">
+            <button class="incorrectAnswer"></button>
+        </div> -->
     </body>
     <script src="index.js"></script>
 </html>
