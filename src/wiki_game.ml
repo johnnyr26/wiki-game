@@ -1,5 +1,6 @@
 open! Core
 open! Wikipedia_namespace
+module Article = String
 
 (* [get_linked_articles] should return a list of wikipedia article lengths contained in
    the input.
@@ -37,17 +38,62 @@ let print_links_command =
         List.iter (get_linked_articles contents) ~f:print_endline]
 ;;
 
+let rec dfs ~origin ~parent ~visited ~how_to_fetch ~depth ~max_depth : (string * string) list =
+  let new_visited = visited @ [(parent, origin)] in 
+  let article = File_fetcher.fetch_exn how_to_fetch ~resource: origin in 
+  let linked_articles = get_linked_articles article in 
+  if depth <> max_depth then 
+  List.fold linked_articles ~init: new_visited ~f: (fun accu article -> 
+    dfs ~origin: article ~parent: origin ~visited: accu ~how_to_fetch ~depth: (depth + 1) ~max_depth
+  ) else new_visited
+
+
+  
+module G = Graph.Imperative.Graph.Concrete (Article)
+
+(* We extend our [Graph] structure with the [Dot] API so that we can easily
+   render constructed graphs. Documentation about this API can be found here:
+   https://github.com/backtracking/ocamlgraph/blob/master/src/dot.mli *)
+module Dot = Graph.Graphviz.Dot (struct
+   include G
+ 
+   (* These functions can be changed to tweak the appearance of the generated
+      graph. Check out the ocamlgraph graphviz API
+      (https://github.com/backtracking/ocamlgraph/blob/master/src/graphviz.mli)
+      for examples of what values can be set here. *)
+   let edge_attributes _ = [ `Dir `None ]
+   let default_edge_attributes _ = []
+   let get_subgraph _ = None
+   let vertex_attributes v = [ `Shape `Box; `Label v; `Fillcolor 1000 ]
+   let vertex_name v = v
+   let default_vertex_attributes _ = []
+   let graph_attributes _ = []
+ end)
+
+let of_url s =
+  String.split s ~on:'/'
+  |> List.last_exn
+  |> String.substr_replace_all ~pattern:"(" ~with_:""
+  |> String.substr_replace_all ~pattern:")" ~with_:""
+;;
+ 
+
 (* [visualize] should explore all linked articles up to a distance of [max_depth] away
    from the given [origin] article, and output the result as a DOT file. It should use the
    [how_to_fetch] argument along with [File_fetcher] to fetch the articles so that the
    implementation can be tested locally on the small dataset in the ../resources/wiki
    directory. *)
-let visualize ?(max_depth = 3) ~origin ~output_file ~how_to_fetch () : unit =
-  ignore (max_depth : int);
-  ignore (origin : string);
-  ignore (output_file : File_path.t);
-  ignore (how_to_fetch : File_fetcher.How_to_fetch.t);
-  failwith "TODO"
+let visualize ?(max_depth = 3) ~origin ~output_file ~(how_to_fetch: File_fetcher.How_to_fetch.t) () : unit =
+  let graph = G.create () in
+  dfs ~origin ~parent: origin ~visited: [] ~how_to_fetch ~depth: 0 ~max_depth
+  |> List.filter ~f: (fun (parent, origin) -> not(String.equal parent origin))
+  |> List.iter ~f:(fun (parent, origin) ->
+    let parent_title = of_url parent in 
+    let origin_title = of_url origin in 
+    G.add_edge graph parent_title origin_title);
+  Dot.output_graph
+    (Out_channel.create (File_path.to_string output_file))
+    graph;
 ;;
 
 let visualize_command =
