@@ -22,9 +22,10 @@ let get_linked_articles contents : string list =
   $$ "a[href]"
   |> to_list
   |> List.map ~f:(fun a -> R.attribute "href" a)
-  |> List.filter ~f:(fun a -> Option.is_none (namespace a) && String.is_prefix a ~prefix: "/wiki/")
+  |> List.filter ~f:(fun a -> Option.is_none (namespace a) && (String.is_prefix a ~prefix: "/wiki/" || String.is_prefix a ~prefix: "https://en.wikipedia.org/wiki/"))
   |> List.sort ~compare: (fun a b -> String.compare a b)
   |> List.remove_consecutive_duplicates ~equal: (fun a b -> String.equal a b)
+  |> List.map ~f: (fun link -> if not (String.is_prefix link ~prefix:"https://en.wikipedia.org") then "https://en.wikipedia.org" ^ link else link)
 ;;
 
 let print_links_command =
@@ -121,6 +122,47 @@ let visualize_command =
         printf !"Done! Wrote dot file to %{File_path}\n%!" output_file]
 ;;
 
+let bfs ~origin ~destination ~how_to_fetch =
+  let visited = ref [] in
+  let to_visit = ref [ (origin, "") ] in
+  let rec traverse () =
+    if List.length !to_visit <> 0
+    then (
+      let (current_link, parent_link) = List.hd_exn !to_visit in
+      print_s [%message (current_link: string)];
+      let current_article = File_fetcher.fetch_exn how_to_fetch ~resource: current_link in 
+      to_visit := List.filteri !to_visit ~f:(fun i _ -> i <> 0);
+      if String.equal current_link destination
+      then (
+        visited := (current_link, parent_link):: !visited;
+        !visited
+      )
+      else (
+        if not
+             (List.exists !visited ~f:(fun (link, _) -> String.equal current_link link))
+        then (
+          visited := (current_link, parent_link) :: !visited;
+          let unfiltered_linked_articles = get_linked_articles current_article in
+          let linked_articles = List.filter unfiltered_linked_articles ~f: (fun link -> List.exists !visited ~f: (fun (l, _) -> not(String.equal link l))) in
+          List.iter linked_articles ~f:(fun linked_article ->
+            to_visit := !to_visit @ [linked_article, current_link]));
+        traverse ()))
+    else !visited
+  in
+  traverse ()
+;;
+
+let rec backtrack explored destination origin path =
+  match
+    List.find_exn explored ~f:(fun (node, _) ->
+      Article.equal node destination)
+  with
+  | node, parent ->
+    if Article.equal node origin
+    then [ node ] @ path
+    else backtrack explored parent origin ([ node ] @ path)
+;;
+
 (* [find_path] should attempt to find a path between the origin article and the
    destination article via linked articles.
 
@@ -130,11 +172,10 @@ let visualize_command =
 
    [max_depth] is useful to limit the time the program spends exploring the graph. *)
 let find_path ?(max_depth = 3) ~origin ~destination ~how_to_fetch () =
+  let visited = bfs ~origin ~destination ~how_to_fetch in 
+  let path = backtrack visited destination origin [] in
   ignore (max_depth : int);
-  ignore (origin : string);
-  ignore (destination : string);
-  ignore (how_to_fetch : File_fetcher.How_to_fetch.t);
-  failwith "TODO"
+  Some path;
 ;;
 
 let find_path_command =
